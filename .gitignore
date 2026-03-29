@@ -1,2 +1,5 @@
 ChestXRay2017/
 
+
+Models/*.keras
+Models/*.h5
