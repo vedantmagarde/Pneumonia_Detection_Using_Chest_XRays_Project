@@ -660,3 +660,498 @@ def generate_cohort_pdf_report(all_results, selected_models):
             plt.close(p_fig)
             
     return pdf_path
+
+
+# 6. CSS Styling
+css = """
+/* Hide Gradio footer */
+footer { display: none !important; }
+
+/* Global theme variables */
+:root, .dark, .gradio-container, .gradio-container.dark {
+    --body-text-color: #0f172a !important;
+    --body-text-color-subdued: #64748b !important;
+    --text-color: #0f172a !important;
+    --text-color-subdued: #64748b !important;
+    --color-text-body: #0f172a !important;
+    
+    --body-background-fill: linear-gradient(135deg, #f0fdfa 0%, #fffdf5 100%) !important;
+    --block-background-fill: #ffffff !important;
+    --block-border-color: #cbd5e1 !important;
+    --block-title-text-color: #0f172a !important;
+    --block-title-background-fill: #f8fafc !important;
+    --block-label-text-color: #1e293b !important;
+    --block-label-background-fill: #f8fafc !important;
+    --block-label-background: #f8fafc !important;
+    --block-info-text-color: #64748b !important;
+    --input-background-fill: #ffffff !important;
+    --input-border-color: #cbd5e1 !important;
+    --input-text-color: #0f172a !important;
+    --border-color-primary: transparent !important;
+    --border-color-accent: transparent !important;
+    --color-border-primary: transparent !important;
+    --ring-color: transparent !important;
+    --background-fill-primary: #ffffff !important;
+    --background-fill-secondary: #f8fafc !important;
+    --table-border-color: #cbd5e1 !important;
+    --table-even-background-fill: #f8fafc !important;
+    --table-odd-background-fill: #ffffff !important;
+    --table-row-text-color: #1e293b !important;
+    --table-header-text-color: #0f172a !important;
+    --table-header-background-fill: #f1f5f9 !important;
+    
+    --checkbox-label-text-color: #1e293b !important;
+    --checkbox-border-color: #cbd5e1 !important;
+    --checkbox-background-color: #ffffff !important;
+    
+    --button-secondary-background-fill: #f1f5f9 !important;
+    --button-secondary-text-color: #1e293b !important;
+    --button-secondary-border-color: #cbd5e1 !important;
+    
+    --error-background-fill: #fef2f2 !important;
+    --error-text-color: #991b1b !important;
+    --error-border-color: #fecaca !important;
+}
+
+/* Toast Notifications */
+.toast-wrap .toast {
+    background-color: white !important;
+    color: #0f172a !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+}
+.toast-wrap .toast.error {
+    background-color: #fef2f2 !important;
+    color: #991b1b !important;
+    border: 1px solid #fecaca !important;
+}
+.toast-wrap .toast * {
+    color: inherit !important;
+}
+
+/* Hidden back button */
+#hidden-back-btn {
+    display: none !important;
+}
+
+/* Calculate button styling */
+#calc-btn {
+    background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%) !important;
+    border: none !important;
+    border-radius: 50px !important;
+    padding: 0 50px 0 75px !important; /* Space for absolute elements */
+    min-height: 56px !important;
+    color: white !important;
+    font-weight: 800 !important;
+    font-size: 15.5px !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+    box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Left icon style */
+#calc-btn::before {
+    content: "";
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 60px !important;
+    background-color: rgba(0,0,0,0.15) !important;
+    background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M 4 12 A 8 8 0 0 1 17.5 6.5' stroke='white' stroke-width='2.5' fill='none'/%3E%3Ccircle cx='18' cy='6' r='2.5' fill='white'/%3E%3Cpath d='M 20 12 A 8 8 0 0 1 6.5 17.5' stroke='white' stroke-width='2.5' fill='none'/%3E%3Ccircle cx='6' cy='18' r='2.5' fill='white'/%3E%3Ccircle cx='12' cy='12' r='4' fill='white'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Right chevron style */
+#calc-btn::after {
+    content: "❯";
+    position: absolute !important;
+    right: 15px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    border: 2px solid rgba(255,255,255,0.6) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    color: white !important;
+    padding-left: 2px !important; /* Visual centering */
+}
+
+#calc-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 15px 25px -5px rgba(59, 130, 246, 0.5) !important;
+    filter: brightness(1.05) !important;
+}
+
+/* Patient dropdown styling */
+#inspect-dropdown > span,
+#inspect-dropdown label > span,
+#inspect-dropdown [data-testid="block-info"] {
+    padding-left: 2px !important;
+    margin-bottom: 6px !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Dropdown input layout */
+.dropdown-col {
+    gap: 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+}
+
+/* Custom dropdown label styling */
+.dropdown-label-custom {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    font-size: 17.5px !important;
+    padding-left: 6px !important;
+    margin: 0 0 -8px 0 !important; /* Pull closer to dropdown */
+    letter-spacing: 0.2px !important;
+    position: relative;
+    z-index: 10;
+}
+
+#inspect-dropdown .wrap, #inspect-dropdown .container {
+    border: 1.5px solid #94a3b8 !important;
+    background-color: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
+    padding: 6px 12px !important;
+    transition: all 0.2s ease !important;
+}
+#inspect-dropdown input,
+#inspect-dropdown span.single-select,
+#inspect-dropdown [data-testid="dropdown-value"] {
+    font-size: 16.5px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+}
+#inspect-dropdown .wrap:hover, #inspect-dropdown .container:hover {
+    border-color: #64748b !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.06) !important;
+}
+#inspect-dropdown .wrap:focus-within, #inspect-dropdown .container:focus-within {
+    border-color: #0d9488 !important;
+    box-shadow: 0 0 0 3px rgba(13,148,136,0.1) !important;
+}
+
+/* File download cards styling */
+.download-card-row > div {
+    border-radius: 14px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.02) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    padding: 4px !important;
+}
+.download-card-row > div:hover {
+    border-color: #14b8a6 !important;
+    box-shadow: 0 12px 24px rgba(20,184,166,0.12) !important;
+    transform: translateY(-4px) !important;
+}
+.download-card-row .gr-form {
+    border: none !important;
+    background: transparent !important;
+}
+
+/* Dark cohort export card layout */
+.dark-export-card h4 {
+    color: #f8fafc !important;
+}
+.dark-export-card p {
+    color: #94a3b8 !important;
+}
+
+/* Page background gradient */
+body, .gradio-container, .gradio-container.dark {
+    background: linear-gradient(135deg, #f0fdfa 0%, #fffdf5 100%) !important;
+    color: #1e293b !important;
+}
+
+/* Remove default wrapper borders */
+.gradio-container .gr-form, .gradio-container .gr-box {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+#page-upload-col, #page-upload-row {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    ring: none !important;
+}
+
+/* Header and label typography */
+h1, h2, h3, h4, h5, h6, 
+.block-title, legend, label, 
+.gr-form > span, .prose p, 
+.prose h1, .prose h2, .prose h3, .prose strong,
+.label-val, .gr-input-label, .gr-select-label, .gr-checkbox-label {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+/* Info and metadata text styling */
+.gr-info, .gr-metadata, .stat-title, p, span, .text-gray-500 {
+    color: #475569 !important;
+}
+
+/* Tab navigation styling */
+div.gradio-container .tab-nav > button,
+div.gradio-container button.gr-tab-button {
+    color: #1e293b !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    background-color: #f8fafc !important;
+    padding: 10px 15px !important;
+    border-radius: 8px 8px 0 0 !important;
+    transition: all 0.2s ease !important;
+    opacity: 1 !important;
+}
+div.gradio-container .tab-nav > button.selected,
+div.gradio-container button.gr-tab-button.selected {
+    color: #ea580c !important; /* Gold/Orange */
+    border-bottom: 3px solid #ea580c !important;
+    background-color: #ffffff !important;
+    font-weight: 800 !important;
+}
+div.gradio-container .tab-nav > button:hover,
+div.gradio-container button.gr-tab-button:hover {
+    color: #0d9488 !important; /* Teal */
+    background-color: #f0fdfa !important;
+}
+
+/* File preview backgrounds */
+.gradio-container .block-label,
+.gradio-container .gr-block > span,
+.gradio-container span.z-10,
+.gradio-container .block-title {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+/* Panel layouts */
+.sidebar-panel, .main-panel, .gradio-container .sidebar-panel, .gradio-container .main-panel {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    padding: 24px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04) !important;
+    outline: none !important;
+}
+
+/* Reset focus states */
+*, *:focus, *:focus-visible, *:focus-within, *:active {
+    outline: none !important;
+    outline-offset: 0 !important;
+    --ring-color: transparent !important;
+    --tw-ring-color: transparent !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+/* Column layout reset */
+.gradio-container > div,
+.gradio-container .gap,
+.gradio-container .flex,
+.gradio-container [class*="col"],
+.gradio-container [class*="row"],
+.gradio-container > .flex.flex-col,
+div[data-testid="column"],
+div[data-testid="row"] {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Checkbox layout */
+input[type="checkbox"]:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Remove outline on focus */
+.sidebar-panel:focus, .sidebar-panel:focus-within,
+.main-panel:focus, .main-panel:focus-within,
+.sidebar-panel *, .main-panel * {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Scan preview image styles */
+.beautified-image {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: 4px solid #f8fafc !important;
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.beautified-image:hover {
+    transform: scale(1.02) !important;
+    box-shadow: 0 15px 30px -5px rgba(13, 148, 136, 0.2) !important;
+}
+
+/* Checkbox group grid layout */
+#models-checkbox-group {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+#models-checkbox-group > label,
+#models-checkbox-group > .border-solid {
+    display: none !important;
+}
+
+#models-checkbox-group .wrap {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    padding: 0 !important;
+}
+
+#models-checkbox-group .wrap > label {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 14px 16px !important;
+    background-color: #ffffff !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+    margin: 0 !important;
+}
+
+#models-checkbox-group .wrap > label:hover {
+    border-color: #0d9488 !important;
+    background-color: #f0fdfa !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(13, 148, 136, 0.08) !important;
+}
+
+#models-checkbox-group .wrap > label.selected,
+#models-checkbox-group .wrap > label:has(input:checked) {
+    background-color: #fff7ed !important; 
+    border-color: #ea580c !important; 
+    border-width: 2px !important;
+    box-shadow: 0 4px 10px rgba(234, 88, 12, 0.1) !important;
+}
+
+#models-checkbox-group .wrap > label span {
+    font-weight: 600 !important;
+    color: #334155 !important;
+    font-size: 0.95rem !important;
+}
+
+#models-checkbox-group .wrap > label.selected span,
+#models-checkbox-group .wrap > label:has(input:checked) span {
+    color: #9a3412 !important;
+    font-weight: 700 !important;
+}
+
+#models-checkbox-group .wrap > label input[type="checkbox"] {
+    margin-right: 12px !important;
+    width: 20px !important;
+    height: 20px !important;
+    accent-color: #ea580c !important;
+    cursor: pointer !important;
+}
+
+/* File element styling */
+.gr-file-card, .gr-file-item, .gr-file-list, .gr-file-preview,
+.gradio-container .gr-file-card, .gradio-container .gr-file-item, .gradio-container .gr-file-list {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+.gr-file-card a, .gr-file-item a, .gr-file-card span, .gr-file-item span {
+    color: #0f766e !important;
+    font-weight: 600 !important;
+}
+
+/* Input typography */
+.gr-input, .gr-dropdown input, .gr-select, select, input, .gr-box, .gr-dropdown span.single-select {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+.gr-dropdown {
+    background-color: #ffffff !important;
+}
+
+/* Table cell styling */
+table, tr, td, th, .gr-dataframe, .gr-dataframe * {
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+}
+thead th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+/* Result card styling */
+.results-card {
+    background-color: #f1f5f9 !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.01) !important;
+}
+
+/* High contrast warning styling */
+.gr-markdown, .prose, .prose *, #warning-box, #warning-box * {
+    color: #1e293b !important;
+}
+
+
+.spaced-row {
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.center-row {
+    display: flex !important;
+    justify-content: center !important;
+    padding: 8px 0 4px 0 !important;
+}
+
+/* Container border override */
+#page-upload-col > div,
+#page-upload-row > div,
+.gradio-container .contain > div > div {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Accent border override */
+[style*="border-color: rgb(234"] {
+    border-color: transparent !important;
+}
+
+"""
