@@ -1155,3 +1155,98 @@ thead th {
 }
 
 """
+
+
+
+
+with gr.Blocks() as demo:
+    # Application state variables
+    active_selection = gr.State([])
+    prediction_state = gr.State([])
+    
+    gr.HTML("<div style='text-align: center; margin-bottom: 25px;'>"
+            "<h1 style='color: #ba4343; margin: 0; font-size: 2.2rem;'>Pneumonia AI Diagnostic Dashboard</h1>"
+            "<p style='color: #8c7e6c; margin: 5px 0 0 0;'>Multi-model Deep Learning Ensemble Analysis</p>"
+            "</div>")
+            
+    # Page 1: Upload and Configuration
+    with gr.Column(visible=True, elem_id="page-upload-col") as page_upload:
+        # Layout rows
+        with gr.Row(elem_id="page-upload-row"):
+            
+            # Model configuration panel
+            with gr.Column(scale=5, elem_classes="sidebar-panel"):
+                gr.HTML("""
+                <div style='display: flex; align-items: center; gap: 12px; margin-bottom: 20px;'>
+                    <div style='background-color: #f0fdfa; padding: 10px; border-radius: 10px; color: #0d9488; display: flex; box-shadow: 0 2px 5px rgba(13,148,136,0.1);'>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                    </div>
+                    <div>
+                        <h3 style='margin: 0; color: #0f172a; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em;'>Model Configuration</h3>
+                        <p style='margin: 2px 0 0 0; color: #64748b; font-size: 0.9rem; font-weight: 500;'>Select up to 4 models for ensemble analysis</p>
+                    </div>
+                </div>
+                """)
+                
+                # Model checkbox grid
+                models_grid = gr.CheckboxGroup(
+                    choices=list(MODEL_PATHS.keys()),
+                    value=[
+                        "Xception (Contrast, Medium)",
+                        "ResNet50 (Contrast, Medium)",
+                        "DenseNet121 (Contrast, Medium)"
+                    ],
+                    label="",
+                    interactive=True,
+                    elem_id="models-checkbox-group"
+                )
+                
+                warning_markdown = gr.Markdown("", elem_id="warning-box", visible=False)
+                
+            # Image selection panel
+            with gr.Column(scale=5, elem_classes="sidebar-panel"):
+                with gr.Row(equal_height=True):
+                    with gr.Column(scale=7, min_width=200):
+                        gr.HTML("""
+                        <div style='display: flex; align-items: center; gap: 12px; margin-bottom: 10px;'>
+                            <div style='background-color: #fff7ed; padding: 10px; border-radius: 10px; color: #ea580c; display: flex; box-shadow: 0 2px 5px rgba(234,88,12,0.1);'>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            </div>
+                            <div>
+                                <h3 style='margin: 0; color: #0f172a; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em;'>Image Selection</h3>
+                                <p style='margin: 2px 0 0 0; color: #64748b; font-size: 0.9rem; font-weight: 500;'>Upload scans or choose from sample library</p>
+                            </div>
+                        </div>
+                        """)
+                    with gr.Column(scale=3, min_width=120):
+
+                        calc_btn = gr.Button("Calculate Results", variant="primary", elem_id="calc-btn")
+                
+                with gr.Tabs():
+                    with gr.Tab("Method A: File Upload"):
+                        uploader = gr.File(
+                            file_count="multiple",
+                            file_types=[".png", ".jpg", ".jpeg"],
+                            label="Upload Chest X-Rays (Max 30) — OR click 'Method B' tab above for samples"
+                        )
+                    with gr.Tab("Method B: Samples Library"):
+                        sample_paths = [os.path.join("samples", f) for f in os.listdir("samples") if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                        gallery = gr.Gallery(
+                            value=sample_paths[:20],
+                            label="Click images to add to current session",
+                            columns=5,
+                            rows=4,
+                            allow_preview=False,
+                            height=260
+                        )
+                
+                selected_gallery = gr.Gallery(
+                    label="Selected Images Preview",
+                    columns=6,
+                    height=160,
+                    show_label=True,
+                    allow_preview=False,
+                    elem_classes="beautified-image"
+                )
+                with gr.Row():
+                    clear_btn = gr.Button("Clear Selection", variant="secondary")
