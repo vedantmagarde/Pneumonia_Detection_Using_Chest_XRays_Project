@@ -325,7 +325,7 @@ def run_ensemble(image_path, selected_models):
 
 
 # 4. Matplotlib Chart Generation
-def make_bar_chart(image_name, results):
+def make_bar_chart(image_name, results, ax=None):
     """Matplotlib bar chart styled for the light background theme."""
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
@@ -355,18 +355,38 @@ def make_bar_chart(image_name, results):
     n = len(models)
     row_h = 0.68
     fig_h  = max(4.2, n * row_h + 2.4)
-    fig, ax = plt.subplots(figsize=(12, fig_h), dpi=280)
-    fig.patch.set_facecolor('#f8fafc')
-    ax.set_facecolor('#f8fafc')
-    fig.subplots_adjust(left=0.27, right=0.76, top=0.86, bottom=0.14)
+    
+    is_vector = (ax is not None)
+    if not is_vector:
+        fig, ax = plt.subplots(figsize=(12, fig_h), dpi=280)
+        fig.patch.set_facecolor('#f8fafc')
+        ax.set_facecolor('#f8fafc')
+        fig.subplots_adjust(left=0.27, right=0.76, top=0.86, bottom=0.14)
+    else:
+        ax.set_facecolor('none')
+
+    # Scaled font sizes for vector mode
+    title_fs = 14 if is_vector else 16
+    sub_fs = 8.5 if is_vector else 9.5
+    y_lbl_fs = 9.5 if is_vector else 10.5
+    lbl_fs = 8 if is_vector else 9
+    ens_lbl_fs = 10 if is_vector else 11
+    badge_fs = 7 if is_vector else 7.8
+    legend_fs = 7.5 if is_vector else 8.5
+    legend_x = 1.18 if is_vector else 1.28
 
     y_pos = list(range(n))
 
     # Draw row background cards
     for i, y in enumerate(y_pos):
         is_ens = (models[i] == "Ensemble")
-        fc = '#ffffff' if not is_ens else '#ecfdf5'
-        ec = '#e2e8f0' if not is_ens else '#6ee7b7'
+        if is_ens:
+            ens_cls = classes[i]
+            fc = '#ecfdf5' if ens_cls == 'NORMAL' else '#fef2f2'
+            ec = '#6ee7b7' if ens_cls == 'NORMAL' else '#fecdd3'
+        else:
+            fc = '#ffffff'
+            ec = '#e2e8f0'
         fancy = FancyBboxPatch(
             (-1, y - 0.42), 101, 0.84,
             boxstyle="round,pad=0.0,rounding_size=0.3",
@@ -380,8 +400,8 @@ def make_bar_chart(image_name, results):
     for xv, lc, ll in [(50,'#fca5a5','50%'), (75,'#86efac','75%')]:
         ax.axvline(xv, color=lc, linewidth=1.2,
                    linestyle='--', alpha=0.6, zorder=1)
-        ax.text(xv, -0.85, ll, ha='center', va='top',
-                fontsize=7, color=lc, weight='bold')
+        ax.text(xv, -0.50 if is_vector else -0.58, ll, ha='center', va='bottom',
+                fontsize=7.2, color=lc, weight='black')
 
     # Draw horizontal bars
     for i, (y, m, conf, col, cls) in enumerate(
@@ -428,7 +448,7 @@ def make_bar_chart(image_name, results):
             ax.text(conf / 2, y,
                     f"{cls}  {conf:.1f}%",
                     ha='center', va='center',
-                    fontsize=11, weight='black', color='white',
+                    fontsize=ens_lbl_fs, weight='black', color='white',
                     zorder=8,
                     path_effects=[
                         pe.withStroke(linewidth=2.5, foreground=col)
@@ -442,25 +462,30 @@ def make_bar_chart(image_name, results):
             ax.text(103, y,
                     f"{cls}  {conf:.1f}%",
                     va='center', ha='left',
-                    fontsize=9, weight='bold',
+                    fontsize=lbl_fs, weight='bold',
                     color=lbl_color, zorder=5)
 
     # Consensus final decision badge
+    ens_class = results["Ensemble"]["class"]
+    badge_bg = '#d1fae5' if ens_class == 'NORMAL' else '#ffe4e6'
+    badge_border = '#34d399' if ens_class == 'NORMAL' else '#fecdd3'
+    badge_text = '#065f46' if ens_class == 'NORMAL' else '#991b1b'
+
     ens_y = y_pos[models.index("Ensemble")]
     ax.annotate("  ✦ FINAL DECISION  ",
                 xy=(0.5, ens_y - 0.30),
-                fontsize=7.8, weight='black', color='#065f46',
+                fontsize=badge_fs, weight='black', color=badge_text,
                 va='bottom', ha='left', zorder=9,
                 annotation_clip=False,
                 bbox=dict(boxstyle='round,pad=0.42',
-                            facecolor='#d1fae5',
-                            edgecolor='#34d399',
+                            facecolor=badge_bg,
+                            edgecolor=badge_border,
                             linewidth=1.3,
                             alpha=0.95))
 
     # Configure Y-axis
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(models, fontsize=10.5, color='#334155',fontweight='700')
+    ax.set_yticklabels(models, fontsize=y_lbl_fs, color='#334155',fontweight='700')
     ax.tick_params(axis='y', length=0, pad=12)
     ax.invert_yaxis()
 
@@ -481,10 +506,10 @@ def make_bar_chart(image_name, results):
     # Set title and subtitle
     short = image_name[:34] + "…" if len(image_name) > 34 else image_name
     ax.set_title("Model Confidence Comparison",
-                 fontsize=16, weight='black', color='#0f172a',
-                 pad=22, loc='center')
-    ax.text(0.5, 1.020, short, transform=ax.transAxes,
-            fontsize=9, color='#94a3b8', style='italic', ha='center')
+                 fontsize=title_fs, weight='black', color='#0f172a',
+                 pad=36 if is_vector else 32, loc='center')
+    ax.text(0.5, 1.12 if is_vector else 1.065, short, transform=ax.transAxes,
+            fontsize=sub_fs, color='#94a3b8', style='italic', ha='center')
 
     # Configure legend
     legend_patches = [
@@ -492,11 +517,14 @@ def make_bar_chart(image_name, results):
         mpatches.Patch(color='#dc2626', label='PNEUMONIA'),
     ]
     ax.legend(handles=legend_patches,
-              loc='lower right', fontsize=8.5,
+              loc='lower right', fontsize=legend_fs,
               framealpha=0.95, edgecolor='#e2e8f0',
               facecolor='white', labelcolor='#475569',
               borderpad=0.8, labelspacing=0.5,
-              bbox_to_anchor=(1.28, 0.01))
+              bbox_to_anchor=(legend_x, 0.01))
+
+    if is_vector:
+        return None
 
     # Save to buffer and return PIL Image
     import io
@@ -544,8 +572,39 @@ def make_pie_chart(all_results):
     buf.seek(0)
     return Image.open(buf).copy()
 
+def truncate_filename(filename, max_len=30):
+    import os
+    if len(filename) <= max_len:
+        return filename
+    name_part, ext_part = os.path.splitext(filename)
+    # Check if there is a timestamp at the end of name_part
+    # Timestamp format is _YYYYMMDD_HHMMSS (16 characters)
+    timestamp_len = 16
+    if len(name_part) > timestamp_len and name_part[-16] == '_' and name_part[-15:].replace('_', '').isdigit():
+        # Keep the timestamp intact
+        ts_part = name_part[-16:]
+        prefix_part = name_part[:-16]
+        avail_len = max_len - len(ext_part) - len(ts_part) - 3 # 3 for ...
+        if avail_len > 4:
+            prefix = prefix_part[:avail_len // 2 + 1]
+            suffix = prefix_part[-(avail_len - len(prefix)):]
+            name_part = f"{prefix}...{suffix}{ts_part}"
+        else:
+            name_part = prefix_part[:4] + "..." + ts_part
+    else:
+        # Standard middle truncation
+        avail_len = max_len - len(ext_part) - 3
+        if avail_len > 6:
+            prefix = name_part[:avail_len // 2 + 1]
+            suffix = name_part[-(avail_len - len(prefix)):]
+            name_part = f"{prefix}...{suffix}"
+        else:
+            name_part = name_part[:max_len - len(ext_part) - 3] + "..."
+    return name_part + ext_part
+
 # 5. File Reports Export (CSV + HTML)
-def generate_csv_report(all_results, selected_models):
+def generate_csv_report(all_results, selected_models, timestamp=None):
+    from datetime import datetime
     csv_rows = []
     for r in all_results:
         row = {"Image": r["name"]}
@@ -557,11 +616,19 @@ def generate_csv_report(all_results, selected_models):
         
     df = pd.DataFrame(csv_rows)
     import tempfile, os
-    csv_path = os.path.join(tempfile.gettempdir(), "Pneumonia_Cohort_Report.csv")
+    if timestamp is None:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    raw_filename = f"Pneumonia_Cohort_Report_{timestamp}.csv"
+    truncated_name = truncate_filename(raw_filename, max_len=32)
+    csv_path = os.path.join(tempfile.gettempdir(), truncated_name)
     df.to_csv(csv_path, index=False)
     return csv_path
 
-def generate_html_report(all_results, selected_models):
+def generate_html_report(all_results, selected_models, timestamp=None):
+    from datetime import datetime
+    if timestamp is None:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
     normal_count = sum(1 for r in all_results if r["results"]["Ensemble"]["class"] == "NORMAL")
     pneumonia_count = sum(1 for r in all_results if r["results"]["Ensemble"]["class"] == "PNEUMONIA")
     
@@ -651,12 +718,14 @@ def generate_html_report(all_results, selected_models):
     </body>
     </html>
     """
-    html_path = os.path.join(tempfile.gettempdir(), "Pneumonia_Cohort_Report.html")
+    raw_filename = f"Pneumonia_Cohort_Report_{timestamp}.html"
+    truncated_name = truncate_filename(raw_filename, max_len=32)
+    html_path = os.path.join(tempfile.gettempdir(), truncated_name)
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     return html_path
 
-def create_single_patient_fig(p_data, bar_chart_img):
+def create_single_patient_fig(p_data, bar_chart_img=None):
     img_path = p_data["path"]
     results = p_data["results"]
     
@@ -727,12 +796,12 @@ def create_single_patient_fig(p_data, bar_chart_img):
         spine.set_edgecolor('#cbd5e1')
         spine.set_linewidth(1.5)
         
-    ax_img_lbl = fig.add_axes([0.15, 0.41, 0.70, 0.03])
+    ax_img_lbl = fig.add_axes([0.15, 0.415, 0.70, 0.025])
     ax_img_lbl.axis('off')
     ax_img_lbl.text(0.5, 0.5, "▲ ORIGINAL CHEST X-RAY SCAN PREVIEW", ha='center', va='center', fontsize=9, color='#64748b', weight='bold')
     
     # 4. Consensus Decision Badge
-    ax_txt = fig.add_axes([0.10, 0.30, 0.80, 0.09])
+    ax_txt = fig.add_axes([0.10, 0.32, 0.80, 0.08])
     ax_txt.axis('off')
     ax_txt.set_xlim(0, 1)
     ax_txt.set_ylim(0, 1)
@@ -755,8 +824,8 @@ def create_single_patient_fig(p_data, bar_chart_img):
     ax_txt.text(0.5, 0.68, "ENSEMBLE CONSENSUS VOTE", va='center', ha='center', fontsize=10, weight='bold', color='#475569')
     ax_txt.text(0.5, 0.28, f"{ens_class} ({ens_conf:.2f}%)", va='center', ha='center', fontsize=18, weight='black', color=ens_color)
     
-    # 5. Bar Chart confidence alignment
-    if bar_chart_img is not None:
+    # 5. Bar Chart confidence alignment (Vector Mode preferred)
+    if bar_chart_img is not None and not isinstance(bar_chart_img, bool):
         ax_chart = fig.add_axes([0.10, 0.04, 0.80, 0.24])
         chart_img = bar_chart_img
         width, height = chart_img.size
@@ -764,26 +833,44 @@ def create_single_patient_fig(p_data, bar_chart_img):
         chart_img = chart_img.crop((0, int(height * 0.15), width, height))
         ax_chart.imshow(chart_img)
         ax_chart.axis('off')
+    else:
+        ax_chart = fig.add_axes([0.32, 0.095, 0.45, 0.16])
+        make_bar_chart(p_data["name"], results, ax=ax_chart)
         
     # Footer
     fig.text(0.5, 0.02, f"Report automatically generated by Pneumonia AI Diagnostic Dashboard • {datetime.now().strftime('%Y-%m-%d %H:%M')}", ha='center', fontsize=9, color='#94a3b8')
     
     return fig
 
-def generate_single_patient_pdf(p_data, bar_chart_img):
-    fig = create_single_patient_fig(p_data, bar_chart_img)
+def generate_single_patient_pdf(p_data, bar_chart_img=None):
+    fig = create_single_patient_fig(p_data, None) # Always use vector mode for PDF output
     import tempfile, os
-    safe_name = "".join([c for c in p_data['name'] if c.isalnum() or c in '._-']).rstrip()
-    pdf_path = os.path.join(tempfile.gettempdir(), f"Diagnostic_Report_{safe_name}.pdf")
+    from datetime import datetime
+    
+    # Extract clean filename base without extension
+    raw_name = p_data['name']
+    name_base, _ = os.path.splitext(raw_name)
+    clean_base = "".join([c for c in name_base if c.isalnum() or c in '_-']).rstrip()
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    pdf_name = f"Pneumonia_{clean_base}_report_{timestamp}.pdf"
+    truncated_name = truncate_filename(pdf_name, max_len=32)
+    pdf_path = os.path.join(tempfile.gettempdir(), truncated_name)
+    
     plt.savefig(pdf_path, format='pdf')
     plt.close(fig)
     return pdf_path
 
-def generate_cohort_pdf_report(all_results, selected_models):
+def generate_cohort_pdf_report(all_results, selected_models, timestamp=None):
+    from datetime import datetime
     import tempfile, os
     from matplotlib.backends.backend_pdf import PdfPages
     
-    pdf_path = os.path.join(tempfile.gettempdir(), "Pneumonia_Cohort_Report.pdf")
+    if timestamp is None:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    raw_filename = f"Pneumonia_Cohort_Report_{timestamp}.pdf"
+    truncated_name = truncate_filename(raw_filename, max_len=32)
+    pdf_path = os.path.join(tempfile.gettempdir(), truncated_name)
     with PdfPages(pdf_path) as pdf:
         # Page 1: Summary dashboard page
         fig = plt.figure(figsize=(8.5, 11))
@@ -898,8 +985,7 @@ def generate_cohort_pdf_report(all_results, selected_models):
         
         # Pages 2+: Individual patient report pages
         for p_data in all_results:
-            bar_chart_img = make_bar_chart(p_data["name"], p_data["results"])
-            p_fig = create_single_patient_fig(p_data, bar_chart_img)
+            p_fig = create_single_patient_fig(p_data, None) # Always use vector mode for PDF output
             pdf.savefig(p_fig)
             plt.close(p_fig)
             
@@ -1114,9 +1200,46 @@ footer { display: none !important; }
     transform: translateY(-5px) !important;
 }
 
+/* Global full-width stretching and flex stretch alignment for all cards */
+.csv-card .wrap, .csv-card .container, .csv-card [class*="wrap"],
+.html-card .wrap, .html-card .container, .html-card [class*="wrap"],
+.pdf-card .wrap, .pdf-card .container, .pdf-card [class*="wrap"],
+#pdf-download-file .wrap, #pdf-download-file .container, #pdf-download-file [class*="wrap"],
+.csv-card .file-preview-holder, .csv-card [class*="file-preview-holder"],
+.html-card .file-preview-holder, .html-card [class*="file-preview-holder"],
+.pdf-card .file-preview-holder, .pdf-card [class*="file-preview-holder"],
+#pdf-download-file .file-preview-holder, #pdf-download-file [class*="file-preview-holder"] {
+    width: 100% !important;
+    max-width: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    box-sizing: border-box !important;
+}
+.csv-card div.file-preview, .csv-card [class*="file-preview"],
+.html-card div.file-preview, .html-card [class*="file-preview"],
+.pdf-card div.file-preview, .pdf-card [class*="file-preview"],
+#pdf-download-file div.file-preview, #pdf-download-file [class*="file-preview"] {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+}
+.csv-card .file-preview-holder *, .csv-card [class*="file-preview-holder"] *,
+.csv-card .file-preview *, .csv-card [class*="file-preview"] *,
+.html-card .file-preview-holder *, .html-card [class*="file-preview-holder"] *,
+.html-card .file-preview *, .html-card [class*="file-preview"] *,
+.pdf-card .file-preview-holder *, .pdf-card [class*="file-preview-holder"] *,
+.pdf-card .file-preview *, .pdf-card [class*="file-preview"] *,
+#pdf-download-file .file-preview-holder *, #pdf-download-file [class*="file-preview-holder"] *,
+#pdf-download-file .file-preview *, #pdf-download-file [class*="file-preview"] * {
+    max-width: none !important;
+}
+
 /* Hide Gradio default card title and replace with custom clean style */
 .download-card-row > div .block-title, 
-.download-card-row > div legend {
+.download-card-row > div legend,
+#pdf-download-file .block-title,
+#pdf-download-file legend {
     color: #0f172a !important;
     font-size: 0.95rem !important;
     font-weight: 850 !important;
@@ -1128,6 +1251,18 @@ footer { display: none !important; }
 .download-card-row .gr-form {
     border: none !important;
     background: transparent !important;
+}
+
+/* Hide clear/delete buttons inside download cards to collapse layout space */
+.csv-card button, .html-card button, .pdf-card button, #pdf-download-file button,
+.csv-card [class*="clear"], .html-card [class*="clear"], .pdf-card [class*="clear"], #pdf-download-file [class*="clear"] {
+    display: none !important;
+}
+
+/* Ensure download link is aligned to the far right with no trailing margins */
+.csv-card a.download-link, .html-card a.download-link, .pdf-card a.download-link, #pdf-download-file a.download-link,
+.csv-card [class*="download-link"], .html-card [class*="download-link"], .pdf-card [class*="download-link"], #pdf-download-file [class*="download-link"] {
+    margin-right: 0 !important;
 }
 
 /* --- 1. CSV Card Styles (Green/Sheets Theme) --- */
@@ -1150,20 +1285,44 @@ footer { display: none !important; }
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
 }
 .csv-card:hover div.file-preview,
 .csv-card:hover [class*="file-preview"] {
     background-color: #d1fae5 !important;
 }
+.csv-card div.file-preview svg,
+.csv-card [class*="file-preview"] svg {
+    flex-shrink: 0 !important;
+}
 .csv-card .file-name,
 .csv-card [class*="file-name"] {
     color: #059669 !important;
     font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: inline-block !important;
+    flex-grow: 1 !important;
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+    max-width: 140px !important;
+    vertical-align: middle !important;
 }
 .csv-card .file-ext,
 .csv-card [class*="file-ext"] {
     color: #047857 !important;
     font-weight: 800 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+.csv-card [class*="size"],
+.csv-card .file-size,
+.csv-card .size {
+    flex-shrink: 0 !important;
 }
 .csv-card a.download-link,
 .csv-card .download-link,
@@ -1179,6 +1338,7 @@ footer { display: none !important; }
     display: inline-flex !important;
     align-items: center !important;
     gap: 4px !important;
+    flex-shrink: 0 !important;
 }
 .csv-card a.download-link:hover,
 .csv-card .download-link:hover,
@@ -1222,20 +1382,44 @@ footer { display: none !important; }
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
 }
 .html-card:hover div.file-preview,
 .html-card:hover [class*="file-preview"] {
     background-color: #e0f2fe !important;
 }
+.html-card div.file-preview svg,
+.html-card [class*="file-preview"] svg {
+    flex-shrink: 0 !important;
+}
 .html-card .file-name,
 .html-card [class*="file-name"] {
     color: #0284c7 !important;
     font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: inline-block !important;
+    flex-grow: 1 !important;
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+    max-width: 140px !important;
+    vertical-align: middle !important;
 }
 .html-card .file-ext,
 .html-card [class*="file-ext"] {
     color: #0369a1 !important;
     font-weight: 800 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+.html-card [class*="size"],
+.html-card .file-size,
+.html-card .size {
+    flex-shrink: 0 !important;
 }
 .html-card a.download-link,
 .html-card .download-link,
@@ -1251,6 +1435,7 @@ footer { display: none !important; }
     display: inline-flex !important;
     align-items: center !important;
     gap: 4px !important;
+    flex-shrink: 0 !important;
 }
 .html-card a.download-link:hover,
 .html-card .download-link:hover,
@@ -1294,20 +1479,44 @@ footer { display: none !important; }
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
 }
 .pdf-card:hover div.file-preview,
 .pdf-card:hover [class*="file-preview"] {
     background-color: #fee2e2 !important;
 }
+.pdf-card div.file-preview svg,
+.pdf-card [class*="file-preview"] svg {
+    flex-shrink: 0 !important;
+}
 .pdf-card .file-name,
 .pdf-card [class*="file-name"] {
     color: #dc2626 !important;
     font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: inline-block !important;
+    flex-grow: 1 !important;
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+    max-width: 140px !important;
+    vertical-align: middle !important;
 }
 .pdf-card .file-ext,
 .pdf-card [class*="file-ext"] {
     color: #b91c1c !important;
     font-weight: 800 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+.pdf-card [class*="size"],
+.pdf-card .file-size,
+.pdf-card .size {
+    flex-shrink: 0 !important;
 }
 .pdf-card a.download-link,
 .pdf-card .download-link,
@@ -1323,6 +1532,7 @@ footer { display: none !important; }
     display: inline-flex !important;
     align-items: center !important;
     gap: 4px !important;
+    flex-shrink: 0 !important;
 }
 .pdf-card a.download-link:hover,
 .pdf-card .download-link:hover,
@@ -1345,6 +1555,92 @@ footer { display: none !important; }
     letter-spacing: 0.8px !important;
     box-shadow: 0 4px 10px rgba(220, 38, 38, 0.15) !important;
 }
+
+/* ── Container wrapper for Patient PDF download section ── */
+.pdf-download-container {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    padding: 16px !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03) !important;
+    margin-top: 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+}
+
+/* ── Patient PDF download file component ── */
+#pdf-download-file {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+/* Kill the giant teal preview background */
+#pdf-download-file .file-preview,
+#pdf-download-file .file-preview-title,
+#pdf-download-file > .wrap,
+#pdf-download-file [data-testid="file-preview"],
+#pdf-download-file .uploading,
+#pdf-download-file .file-container {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 4px 0 0 0 !important;
+    margin: 0 !important;
+}
+
+/* The filename text row */
+#pdf-download-file .file-name,
+#pdf-download-file .file-name-with-size,
+#pdf-download-file span.file-name {
+    color: #334155 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    display: block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 60% !important;
+}
+
+/* The download size+arrow button — make it small and clean */
+#pdf-download-file a,
+#pdf-download-file .download-link,
+#pdf-download-file button.download {
+    background: #0d9488 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 7px 14px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(13,148,136,0.25) !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+/* Row containing filename + download button */
+#pdf-download-file .file-name-with-size,
+#pdf-download-file > .wrap > div {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
 
 /* Cohort export card layout */
 .export-card h4 {
@@ -1628,6 +1924,46 @@ thead th {
     border-color: transparent !important;
 }
 
+/* Disabled/Processing state for calculate results button */
+#calc-btn:disabled, #calc-btn[disabled] {
+    background: #64748b !important;
+    opacity: 0.85 !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    padding: 0 !important;
+}
+
+#calc-btn:disabled::before, #calc-btn[disabled]::before,
+#calc-btn:disabled::after, #calc-btn[disabled]::after {
+    display: none !important;
+}
+
+/* Custom processing status text layout below calc-btn */
+.processing-status-container {
+    background-color: #fff1f2 !important; /* soft pink/red */
+    border: 1.5px solid #fecdd3 !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    text-align: center !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
+    color: #475569 !important;
+    margin-top: 12px !important;
+    box-shadow: 0 2px 8px rgba(244, 63, 94, 0.05) !important;
+    display: inline-block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Hide default Gradio progress bar/container elements */
+.progress-holder, [class*="progress-holder"], 
+.progress-container, [class*="progress-container"], 
+[class*="progress-text"], [class*="progress-bar"] {
+    display: none !important;
+}
+
+
 """
 
 
@@ -1693,8 +2029,12 @@ with gr.Blocks() as demo:
                         </div>
                         """)
                     with gr.Column(scale=3, min_width=120):
-
                         calc_btn = gr.Button("Calculate Results", variant="primary", elem_id="calc-btn")
+                        processing_status = gr.HTML(
+                            "<div class='processing-status-container'>processing | 0.0s</div>",
+                            visible=False,
+                            elem_id="processing-status"
+                        )
                 
                 with gr.Tabs():
                     with gr.Tab("Method A: File Upload"):
@@ -1785,33 +2125,60 @@ with gr.Blocks() as demo:
                     with gr.Column(scale=4, elem_classes="main-panel"):
                         inspect_image = gr.Image(label="Inspected Chest X-Ray Scan", show_label=True, height=360, elem_classes="beautified-image")
                         
-                        gr.HTML("<div style='height:16px'></div>")
-                        gr.HTML("""
-                        <div style='
-                            display: flex;
-                            align-items: center;
-                            gap: 14px;
-                            background: white;
-                            border: 1.5px solid #e2e8f0;
-                            border-radius: 14px;
-                            padding: 14px 18px;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-                            margin-bottom: 8px;
-                        '>
-                          <div style='width:38px; height:38px; border-radius:10px; background:#f0fdfa;
-                                      display:flex; align-items:center; justify-content:center; font-size:20px;
-                                      flex-shrink:0;'>📋</div>
-                          <div>
-                            <div style='font-weight:800; color:#0f172a; font-size:14px; margin-bottom:2px;'>
-                              Patient Diagnostic Report
-                            </div>
-                            <div style='color:#64748b; font-size:12px;'>
-                              Full per-patient PDF — click the file link below to download
-                            </div>
-                          </div>
-                        </div>
-                        """)
-                        patient_pdf_download = gr.File(show_label=False, visible=False, elem_id="pdf-download-file")
+                        with gr.Group(elem_classes="pdf-download-container"):
+                            gr.HTML("""
+<div style='
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%);
+    border: 1.5px solid #99f6e4;
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 8px rgba(13,148,136,0.07);
+'>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div style="
+        width: 36px; height: 36px;
+        background: #0d9488;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(13,148,136,0.3);
+    ">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+           viewBox="0 0 24 24" fill="none" stroke="white"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/>
+        <line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+    </div>
+    <div>
+      <div style="font-weight:800; color:#0f172a; font-size:13px; line-height:1.3;">
+        Patient Diagnostic Report
+      </div>
+      <div style="color:#64748b; font-size:11px; margin-top:1px;">
+        PDF · Auto-generated per scan
+      </div>
+    </div>
+  </div>
+  <div style="
+      background: #0d9488;
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 12px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 6px rgba(13,148,136,0.3);
+  ">PDF</div>
+</div>
+""")
+                            patient_pdf_download = gr.File(show_label=False, visible=False, elem_id="pdf-download-file", interactive=False)
                         
                     # Consensus prediction panel
                     with gr.Column(scale=6, elem_classes="main-panel"):
@@ -1877,9 +2244,9 @@ with gr.Blocks() as demo:
                     </div>
                     """)
                     with gr.Row(elem_classes="download-card-row"):
-                        csv_download = gr.File(label="📊 Download CSV Cohort Diagnostics", visible=False, elem_classes=["csv-card"])
-                        html_download = gr.File(label="🌐 Download HTML Cohort Report", visible=False, elem_classes=["html-card"])
-                        pdf_download = gr.File(label="📑 Download PDF Cohort Report", visible=False, elem_classes=["pdf-card"])
+                        csv_download = gr.File(label="📊 Download CSV Cohort Diagnostics", visible=False, elem_classes=["csv-card"], interactive=False)
+                        html_download = gr.File(label="🌐 Download HTML Cohort Report", visible=False, elem_classes=["html-card"], interactive=False)
+                        pdf_download = gr.File(label="📑 Download PDF Cohort Report", visible=False, elem_classes=["pdf-card"], interactive=False)
 
 
 
@@ -1923,8 +2290,7 @@ with gr.Blocks() as demo:
     gallery.select(add_from_gallery, inputs=[active_selection], outputs=[active_selection, selected_gallery])
     clear_btn.click(clear_queue, outputs=[active_selection, selected_gallery])
 
-    # Process selected images through models
-    def calculate_ensemble_predictions(images, selected_models, progress=gr.Progress()):
+    def calculate_ensemble_predictions(images, selected_models):
         if not selected_models:
             raise gr.Error("Please select at least one model in Section 1.")
         if len(selected_models) > 4:
@@ -1932,12 +2298,28 @@ with gr.Blocks() as demo:
         if not images:
             raise gr.Error("Please upload or select at least one image.")
             
-        progress(0, desc="Initializing calculations...")
+        import time
+        start_time = time.time()
+        
+        # 1. Yield initial state: disabled button and starting status
+        yield (
+            gr.update(),                                          # main_tabs
+            gr.update(),                                          # prediction_state
+            gr.update(),                                          # image_selector
+            gr.update(),                                          # csv_download
+            gr.update(),                                          # html_download
+            gr.update(),                                          # pdf_download
+            gr.update(),                                          # report_display_html
+            gr.update(),                                          # page_upload
+            gr.update(),                                          # page_results
+            gr.update(value="Processing...", interactive=False),  # calc_btn
+            gr.update(value="<div class='processing-status-container'>processing | 0.0s</div>", visible=True) # processing_status
+        )
+        
         results = []
         
         for idx, img_path in enumerate(images):
             basename = os.path.basename(img_path)
-            progress((idx + 0.1) / len(images), desc=f"Analyzing {basename}...")
             
             img_results = run_ensemble(img_path, selected_models)
             results.append({
@@ -1946,12 +2328,32 @@ with gr.Blocks() as demo:
                 "results": img_results
             })
             
-        progress(0.9, desc="Compiling charts and reports...")
+            elapsed = time.time() - start_time
+            avg_time = elapsed / (idx + 1)
+            est_total = avg_time * len(images)
+            
+            # Yield progress tick updates
+            yield (
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(value="Processing...", interactive=False),
+                gr.update(value=f"<div class='processing-status-container'>processing | {elapsed:.1f}/{est_total:.1f}s</div>", visible=True)
+            )
+
         
-        # Generate export reports
-        csv_path = generate_csv_report(results, selected_models)
-        html_path = generate_html_report(results, selected_models)
-        pdf_path = generate_cohort_pdf_report(results, selected_models)
+        # Generate export reports with consistent timestamp
+        from datetime import datetime
+        run_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        csv_path = generate_csv_report(results, selected_models, run_timestamp)
+        html_path = generate_html_report(results, selected_models, run_timestamp)
+        pdf_path = generate_cohort_pdf_report(results, selected_models, run_timestamp)
         
         # Read HTML report for UI preview
         with open(html_path, "r", encoding="utf-8") as f:
@@ -1960,7 +2362,8 @@ with gr.Blocks() as demo:
         # Populate image selector choices
         choices = [r["name"] for r in results]
         
-        return (
+        # 2. Yield final results and reset components
+        yield (
             gr.update(selected=0),                                # Switch tab
             results,                                              # Prediction state
             gr.update(choices=choices, value=choices[0]),         # Image dropdown
@@ -1969,13 +2372,15 @@ with gr.Blocks() as demo:
             gr.update(visible=True, value=pdf_path),              # PDF report path
             gr.update(value=html_report_code),                    # Preview HTML
             gr.update(visible=False),                             # Hide upload view
-            gr.update(visible=True)                               # Show results view
+            gr.update(visible=True),                              # Show results view
+            gr.update(value="Calculate Results", interactive=True), # Reset button
+            gr.update(visible=False)                              # Hide processing_status
         )
 
     calc_btn.click(
         calculate_ensemble_predictions,
         inputs=[active_selection, models_grid],
-        outputs=[main_tabs, prediction_state, image_selector, csv_download, html_download, pdf_download, report_display_html, page_upload, page_results],
+        outputs=[main_tabs, prediction_state, image_selector, csv_download, html_download, pdf_download, report_display_html, page_upload, page_results, calc_btn, processing_status],
         scroll_to_output=False
     )
     
@@ -2072,4 +2477,5 @@ with gr.Blocks() as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(debug=True, theme=gr.themes.Default(), css=css)
+    # demo.launch(debug=True, theme=gr.themes.Default(), css=css)
+    demo.launch(debug=True, theme=gr.themes.Default(), css=css, show_error=True)

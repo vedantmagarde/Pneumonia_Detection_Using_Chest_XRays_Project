@@ -1,5 +1,7 @@
 ChestXRay2017/
 tmp/
+__pycache__/
+
 
 
 Models/*.keras
