@@ -171,30 +171,41 @@ def load_legacy_model(path):
 
 import time # Add this at the top of your script if it isn't there!
 
-print("Initializing models...")
-for name, path in MODEL_PATHS.items():
-    if os.path.exists(path):
-        try:
-            # print(f"[{time.strftime('%H:%M:%S')}] Attempting to load: {name}...")
-            # print(f"Path: {path}")
-            
-            # Record start time to measure how long it takes
-            start_time = time.time()
-            
-            # Load the legacy model using our robust compatibility loader
-            loaded_models[name] = load_legacy_model(path)
-            
-            elapsed = time.time() - start_time
-            # print(f"[{time.strftime('%H:%M:%S')}] Successfully loaded {name} in {elapsed:.2f} seconds.\n")
-            
-        except Exception as e:
-            # print(f"[{time.strftime('%H:%M:%S')}] FAILED to load {name}. Error: {e}\n")
-            loaded_models[name] = None
-    else:
-        print(f"[{time.strftime('%H:%M:%S')}] MISSING FILE: {path}\n")
-        loaded_models[name] = None
+import threading
+import glob
 
-# print("Model initialization loop complete!")
+def delete_file_after_delay(file_path, delay=300):
+    """Spawns a daemon thread to delete the specified file after a delay (in seconds)."""
+    def delayed_delete():
+        time.sleep(delay)
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"Deleted temp file: {file_path}")
+        except Exception as e:
+            print(f"Error deleting temp file {file_path} after delay: {e}")
+            
+    threading.Thread(target=delayed_delete, daemon=True).start()
+
+def cleanup_temp_files():
+    """Purges any leftover generated report files from the system temporary directory."""
+    temp_dir = tempfile.gettempdir()
+    patterns = [
+        "Pneumonia_Cohort_Report_*.csv",
+        "Pneumonia_Cohort_Report_*.html",
+        "Pneumonia_Cohort_Report_*.pdf",
+        "Pneumonia_*_report_*.pdf"
+    ]
+    for pattern in patterns:
+        for file_path in glob.glob(os.path.join(temp_dir, pattern)):
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"Cleaned up old temp file: {file_path}")
+            except Exception as e:
+                print(f"Error cleaning up old temp file {file_path}: {e}")
+
+print("Note: Models will be lazy-loaded on demand when running calculations to conserve RAM.")
         
 # 2. Image Preprocessing & Sample Setup
 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -567,7 +578,7 @@ def make_pie_chart(all_results):
     import io
     from PIL import Image
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=200, facecolor='#ffffff')
+    plt.savefig(buf, format='png', dpi=350, facecolor='#ffffff', bbox_inches='tight', pad_inches=0.20)
     plt.close()
     buf.seek(0)
     return Image.open(buf).copy()
@@ -938,11 +949,27 @@ def generate_cohort_pdf_report(all_results, selected_models, timestamp=None):
         )
         ax_pie_card.add_patch(card_pie)
         
-        pie_img = make_pie_chart(all_results)
-        if pie_img is not None:
+        # Draw native vector-sharp pie chart directly on ax_pie
+        ensemble_classes = [res["results"]["Ensemble"]["class"] for res in all_results]
+        normal_count = ensemble_classes.count("NORMAL")
+        pneumonia_count = ensemble_classes.count("PNEUMONIA")
+        
+        counts_f = [normal_count, pneumonia_count]
+        labels_f = ['NORMAL', 'PNEUMONIA']
+        colors_f = ['#0d9488', '#f43f5e']
+        
+        # Filter classes that have counts > 0
+        active_pie = [(l, c, col) for l, c, col in zip(labels_f, counts_f, colors_f) if c > 0]
+        if active_pie:
+            labels_active = [x[0] for x in active_pie]
+            counts_active = [x[1] for x in active_pie]
+            colors_active = [x[2] for x in active_pie]
+            
             ax_pie = fig.add_axes([0.54, 0.52, 0.36, 0.32])
-            ax_pie.imshow(pie_img)
-            ax_pie.axis('off')
+            ax_pie.pie(counts_active, labels=labels_active, colors=colors_active, autopct='%1.1f%%',
+                       textprops={'color': '#1e293b', 'fontsize': 9, 'weight': 'bold'},
+                       startangle=90, wedgeprops={'edgecolor': '#ffffff', 'linewidth': 2})
+            ax_pie.set_title("Cohort Diagnosis Distribution", color='#1e293b', fontsize=10.5, pad=10, weight='bold')
             
         # 4. Bottom Row: Selected Models Card
         ax_models_card = fig.add_axes([0.08, 0.10, 0.84, 0.36])
@@ -1047,6 +1074,15 @@ footer { display: none !important; }
     --accent-500: #0d9488 !important;
     --tab-border-color-active: transparent !important;
     --tab-selected-border-color: transparent !important;
+
+    /* Gradio Uploader Theme Variables */
+    --upload-container-background-fill: linear-gradient(135deg, #ffffff 0%, #f4fbf9 100%) !important;
+    --upload-container-background-fill-hover: linear-gradient(135deg, #ffffff 0%, #eefbf7 100%) !important;
+    --upload-container-border-color: rgba(13, 148, 136, 0.3) !important;
+    --upload-container-border-color-hover: #0d9488 !important;
+    --upload-container-border-width: 2.5px !important;
+    --upload-container-border-style: dashed !important;
+    --upload-container-border-radius: 16px !important;
 }
 
 /* Toast Notifications */
@@ -1074,9 +1110,9 @@ footer { display: none !important; }
     background: var(--calc-btn-bg, linear-gradient(135deg, rgba(30, 58, 95, 0.95) 0%, rgba(18, 34, 58, 0.95) 100%)) !important;
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     border-radius: 50px !important;
-    padding: 0 28px 0 44px !important; /* Spacing optimized for compact size */
+    padding: 0 24px 0 56px !important; /* Increased left padding to prevent overlap with left icon */
     min-height: 48px !important;
-    min-width: 190px !important; /* Reduced width to fit screen boundaries without overflow */
+    min-width: 230px !important; /* Increased width to provide breathing space for processing text */
     max-width: 100% !important;
     white-space: nowrap !important; /* Prevent text wrapping */
     color: white !important;
@@ -1863,18 +1899,178 @@ input[type="checkbox"]:focus {
     cursor: pointer !important;
 }
 
-/* File element styling */
-.gr-file-card, .gr-file-item, .gr-file-list, .gr-file-preview,
-.gradio-container .gr-file-card, .gradio-container .gr-file-item, .gradio-container .gr-file-list {
-    background-color: #ffffff !important;
-    color: #1e293b !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+#models-checkbox-group .wrap > label .custom-more-dots {
+    margin-left: auto !important;
+    color: #94a3b8 !important;
+    font-size: 1.25rem !important;
+    font-weight: 900 !important;
+    padding-left: 10px !important;
+    padding-right: 4px !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
 }
-.gr-file-card a, .gr-file-item a, .gr-file-card span, .gr-file-item span {
-    color: #0f766e !important;
+
+#models-checkbox-group .wrap > label:hover .custom-more-dots {
+    color: #0d9488 !important;
+}
+
+#models-checkbox-group .wrap > label.selected .custom-more-dots,
+#models-checkbox-group .wrap > label:has(input:checked) .custom-more-dots {
+    color: #9a3412 !important;
+}
+
+/* Prevent label icon overlap in uploader title */
+#file-uploader label,
+#file-uploader legend,
+#file-uploader .block-title,
+#file-uploader span[class*="title"],
+#file-uploader span.block-title {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    margin-bottom: 12px !important;
+}
+
+#file-uploader label svg,
+#file-uploader legend svg,
+#file-uploader .block-title svg,
+#file-uploader span[class*="title"] svg,
+#file-uploader span.block-title svg {
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+}
+
+/* Hide browser's native file input button and text */
+#file-uploader input[type="file"] {
+    display: none !important;
+}
+
+/* Remove duplicate borders and backgrounds from uploader wrapper elements */
+#file-uploader .wrap,
+#file-uploader .upload-container > div {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+/* Style the inner upload dropzone box and its hover animations */
+#file-uploader .upload-container,
+#file-uploader [data-testid="file-upload"] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#file-uploader:hover .upload-container,
+#file-uploader:hover [data-testid="file-upload"] {
+    transform: translateY(-2.5px) scale(1.015) !important;
+    box-shadow: 0 12px 32px -4px rgba(13, 148, 136, 0.18), 0 4px 12px -2px rgba(13, 148, 136, 0.06) !important;
+}
+
+/* Text styling inside the upload box */
+#file-uploader .upload-container p,
+#file-uploader .upload-container span {
+    color: #475569 !important;
     font-weight: 600 !important;
+    font-size: 14.5px !important;
+    transition: color 0.25s ease !important;
+}
+
+/* Styling for bold instruction text */
+#file-uploader .upload-container p:first-of-type {
+    font-size: 15.5px !important;
+    font-weight: 800 !important;
+    color: #1e293b !important;
+    margin-bottom: 6px !important;
+}
+
+/* Color SVG upload icon to Teal and animate micro-bounce on hover */
+#file-uploader .upload-container svg {
+    color: #0d9488 !important;
+    stroke: #0d9488 !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin-bottom: 12px !important;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+#file-uploader:hover .upload-container svg {
+    transform: translateY(-5px) scale(1.08) !important;
+}
+
+/* Style the file preview container (when files are loaded) */
+#file-uploader .file-preview,
+#file-uploader [data-testid="file-preview"] {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    padding: 16px !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Styling for uploaded file preview cards */
+#file-uploader .gr-file-card, 
+#file-uploader .gr-file-item, 
+#file-uploader .gr-file-list,
+#file-uploader [class*="file-item"],
+#file-uploader [class*="file-card"] {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.01) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+}
+
+#file-uploader .gr-file-card:hover, 
+#file-uploader .gr-file-item:hover, 
+#file-uploader [class*="file-item"]:hover,
+#file-uploader [class*="file-card"]:hover {
+    transform: translateY(-3px) !important;
+    border-color: #0d9488 !important;
+    box-shadow: 0 10px 24px -4px rgba(13, 148, 136, 0.12) !important;
+    background-color: #ffffff !important;
+}
+
+/* File name links inside cards */
+#file-uploader .gr-file-card a, 
+#file-uploader .gr-file-item a,
+#file-uploader [class*="file-item"] a,
+#file-uploader [class*="file-card"] a {
+    color: #0f766e !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
+}
+
+/* File icon/thumbnail styling inside list */
+#file-uploader .gr-file-card svg,
+#file-uploader .gr-file-item svg,
+#file-uploader [class*="file-item"] svg {
+    color: #0d9488 !important;
+    fill: rgba(13, 148, 136, 0.05) !important;
+}
+
+/* Thumbnail previews styling */
+#file-uploader img,
+#file-uploader .thumbnail,
+#file-uploader [class*="thumbnail"] {
+    border-radius: 10px !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#file-uploader img:hover {
+    transform: scale(1.05) translateY(-2px) !important;
+    box-shadow: 0 10px 20px rgba(13, 148, 136, 0.18) !important;
+    border-color: #0d9488 !important;
 }
 
 /* Input typography */
@@ -1944,7 +2140,7 @@ thead th {
     opacity: 0.95 !important;
     box-shadow: 0 8px 24px -6px rgba(13, 148, 136, 0.2) !important;
     cursor: not-allowed !important;
-    padding: 0 28px 0 44px !important;
+    padding: 0 24px 0 56px !important;
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     color: white !important;
     text-shadow: 0 1px 3px rgba(15, 23, 42, 0.9), 0 1px 2px rgba(15, 23, 42, 0.9) !important; /* High contrast accessibility shadow */
@@ -2004,6 +2200,30 @@ button.selected::after, button::after,
     background: transparent !important;
 }
 
+/* Custom modal close button styling */
+custom-modal-close {
+    position: absolute !important;
+    top: 20px !important;
+    right: 20px !important;
+    background: rgba(15, 23, 42, 0.05) !important;
+    border: none !important;
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    cursor: pointer !important;
+    color: #64748b !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+}
+custom-modal-close:hover {
+    background: #fee2e2 !important;
+    color: #ef4444 !important;
+}
+
 
 """
 
@@ -2013,103 +2233,70 @@ with gr.Blocks() as demo:
     prediction_state = gr.State([])
     
     gr.HTML(r"""
-    <div style='text-align: center; margin-bottom: 25px;'>
-        <h1 style='color: #ba4343; margin: 0; font-size: 2.2rem;'>Pneumonia AI Diagnostic Dashboard</h1>
-        <p style='color: #8c7e6c; margin: 5px 0 0 0;'>Multi-model Deep Learning Ensemble Analysis</p>
+    <div style="text-align: center; margin-bottom: 25px;">
+        <h1 style="color: #ba4343; margin: 0; font-size: 2.2rem;">Pneumonia AI Diagnostic Dashboard</h1>
+        <p style="color: #8c7e6c; margin: 5px 0 0 0;">Multi-model Deep Learning Ensemble Analysis</p>
     </div>
-    <img src="invalid-image-trigger" onerror="
+    <img src="invalid-image-trigger" onerror='
     (function() {
-        console.log('Progress loader script initialized via HTML onerror.');
+        console.log("Progress loader script initialized.");
         
         function initButtonProgress() {
-            const btn = document.getElementById('calc-btn');
+            const btn = document.getElementById("calc-btn");
             if (!btn) return false;
             if (btn.dataset.progressInitialized) return true;
             
-            console.log('Target button found, initializing progress...');
-            btn.dataset.progressInitialized = 'true';
-            
+            btn.dataset.progressInitialized = "true";
             let timer = null;
             let startTime = null;
             let totalEstimated = 0;
             
             function updateProgress() {
                 if (!startTime) return;
-                
-                // Calculate elapsed time
                 const elapsed = (Date.now() - startTime) / 1000;
                 
-                // Read status from the DOM/python update
-                const statusEl = document.getElementById('processing-status');
+                const statusEl = document.getElementById("processing-status");
                 if (statusEl) {
-                    const text = statusEl.textContent || '';
+                    const text = statusEl.textContent || "";
                     const match = text.match(/processing\s*\|\s*([\d\.]+)\/([\d\.]+)s/);
                     if (match) {
-                        const parsedElapsed = parseFloat(match[1]);
                         const parsedTotal = parseFloat(match[2]);
-                        if (parsedTotal > 0) {
-                            totalEstimated = parsedTotal;
-                        }
+                        if (parsedTotal > 0) totalEstimated = parsedTotal;
                     }
                 }
                 
-                // Default estimation if not parsed
-                if (totalEstimated <= 0) {
-                    totalEstimated = 5; // fallback
-                }
-                
-                // Clamp elapsed/progress
+                if (totalEstimated <= 0) totalEstimated = 5;
                 const displayElapsed = Math.min(elapsed, totalEstimated - 0.1);
                 const progress = Math.min(displayElapsed / totalEstimated, 0.98);
                 
-                const elapsedStr = displayElapsed.toFixed(1) + 's';
-                const totalStr = totalEstimated.toFixed(0) + 's';
+                const elapsedStr = displayElapsed.toFixed(1) + "s";
+                const totalStr = totalEstimated.toFixed(0) + "s";
                 
-                const expectedText = 'Processing... ' + elapsedStr + ' / ' + totalStr;
-                if (btn.innerText !== expectedText) {
-                    btn.innerText = expectedText;
-                }
+                const expectedText = "Processing... " + elapsedStr + " / " + totalStr;
+                if (btn.innerText !== expectedText) btn.innerText = expectedText;
                 
-                // Animate background gradient smoothly inside the button
                 const pct = (progress * 100).toFixed(1);
-                // Animate with high contrast Teal (#0d9488) on Deep Navy (#1E3A5F) for maximum visibility
-                btn.style.setProperty('--calc-btn-bg', `linear-gradient(90deg, #0d9488 0%, #0d9488 ${pct}%, #1E3A5F ${pct}%, #1E3A5F 100%)`);
+                btn.style.setProperty("--calc-btn-bg", `linear-gradient(90deg, #0d9488 0%, #0d9488 ${pct}%, #1E3A5F ${pct}%, #1E3A5F 100%)`);
             }
             
             const observer = new MutationObserver((mutations) => {
-                const isDisabled = btn.hasAttribute('disabled');
-                if (isDisabled) {
+                if (btn.hasAttribute("disabled")) {
                     if (!startTime) {
-                        console.log('Button disabled, starting progress animation...');
                         startTime = Date.now();
                         totalEstimated = 0;
-                        btn.classList.add('processing-active');
-                        
-                        // Set starting background using Teal
-                        btn.style.setProperty('--calc-btn-bg', `linear-gradient(90deg, #0d9488 0%, #1E3A5F 0%, #1E3A5F 100%)`);
-                        
+                        btn.classList.add("processing-active");
+                        btn.style.setProperty("--calc-btn-bg", `linear-gradient(90deg, #0d9488 0%, #1E3A5F 0%, #1E3A5F 100%)`);
                         if (timer) clearInterval(timer);
                         timer = setInterval(updateProgress, 100);
-                    } else {
-                        // Gradio might have overwritten the button text, restore it
-                        const elapsed = (Date.now() - startTime) / 1000;
-                        const displayElapsed = Math.min(elapsed, totalEstimated > 0 ? totalEstimated - 0.1 : 5);
-                        const elapsedStr = displayElapsed.toFixed(1) + 's';
-                        const totalStr = totalEstimated > 0 ? totalEstimated.toFixed(0) + 's' : '--s';
-                        const expectedText = 'Processing... ' + elapsedStr + ' / ' + totalStr;
-                        if (btn.innerText !== expectedText) {
-                            btn.innerText = expectedText;
-                        }
                     }
                 } else {
                     if (startTime) {
-                        console.log('Button enabled, resetting progress...');
                         if (timer) clearInterval(timer);
                         timer = null;
                         startTime = null;
-                        btn.classList.remove('processing-active');
-                        btn.style.removeProperty('--calc-btn-bg'); // restore to default CSS background
-                        btn.innerText = 'Calculate Results';
+                        btn.classList.remove("processing-active");
+                        btn.style.removeProperty("--calc-btn-bg");
+                        btn.innerText = "Calculate Results";
                     }
                 }
             });
@@ -2118,14 +2305,192 @@ with gr.Blocks() as demo:
             return true;
         }
         
-        // Periodically search for elements since Gradio renders dynamically
-        const runCheck = setInterval(() => {
-            if (initButtonProgress()) {
-                // Keep running to make sure we rebind if elements are destroyed and recreated
+        function createCustomModal() {
+            if (document.getElementById("custom-modal-overlay")) return;
+            
+            const overlay = document.createElement("div");
+            overlay.id = "custom-modal-overlay";
+            overlay.style.cssText = "display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.4); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s ease;";
+            
+            overlay.innerHTML = `
+                <div id="custom-modal-content" style="background: rgba(255, 255, 255, 0.95); border: 1.5px solid rgba(255, 255, 255, 0.3); border-radius: 20px; width: 420px; max-width: 90%; padding: 32px 28px; position: relative; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15); display: flex; flex-direction: column; gap: 16px; transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                    <button id="custom-modal-close">×</button>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+                        <div style="background: #fff7ed; color: #ea580c; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;">🔍</div>
+                        <div>
+                            <h3 id="custom-modal-title" style="margin: 0; color: #0f172a; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.01em;">Model Specifications</h3>
+                            <p id="custom-modal-subtitle" style="margin: 2px 0 0 0; color: #ea580c; font-size: 0.85rem; font-weight: 700;"></p>
+                        </div>
+                    </div>
+                    <div style="height: 1px; background: #e2e8f0; width: 100%;"></div>
+                    <div id="custom-modal-body" style="color: #334155; font-size: 0.90rem; line-height: 1.5; font-weight: 600; display: flex; flex-direction: column; gap: 8px;">
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            const closeBtn = overlay.querySelector("#custom-modal-close");
+            closeBtn.addEventListener("click", hideCustomModal);
+            overlay.addEventListener("click", function(e) {
+                if (e.target === overlay) hideCustomModal();
+            });
+        }
+        
+        function showCustomModal(modelName) {
+            createCustomModal();
+            const overlay = document.getElementById("custom-modal-overlay");
+            const content = document.getElementById("custom-modal-content");
+            const subtitle = document.getElementById("custom-modal-subtitle");
+            const bodyEl = document.getElementById("custom-modal-body");
+            
+            subtitle.innerText = modelName || "Parameters Setting";
+            
+            const modelDetails = {
+                "Xception (Contrast, Medium)": [
+                    "• <strong>Experiment:</strong> E27",
+                    "• <strong>Preprocessing:</strong> CLAHE + Contrast",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Medium Intensity",
+                    "• <strong>Tuning:</strong> Partial Block Unfreezing"
+                ],
+                "Xception (Contrast, Light)": [
+                    "• <strong>Experiment:</strong> E23",
+                    "• <strong>Preprocessing:</strong> CLAHE + Contrast",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Partial Block Unfreezing"
+                ],
+                "ImprovedCNN (Medium)": [
+                    "• <strong>Experiment:</strong> E5",
+                    "• <strong>Preprocessing:</strong> Base Normalization",
+                    "• <strong>Input Size:</strong> 150x150 (Grayscale)",
+                    "• <strong>Augmentation:</strong> Medium Intensity",
+                    "• <strong>Tuning:</strong> Class Weights"
+                ],
+                "MobileNetV2 (Base)": [
+                    "• <strong>Experiment:</strong> E9",
+                    "• <strong>Preprocessing:</strong> Base Normalization",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Classification Head Only"
+                ],
+                "ResNet50 (Contrast, Medium)": [
+                    "• <strong>Experiment:</strong> E26",
+                    "• <strong>Preprocessing:</strong> CLAHE + Contrast",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Medium Intensity",
+                    "• <strong>Tuning:</strong> Partial Block Unfreezing"
+                ],
+                "Xception (Base)": [
+                    "• <strong>Experiment:</strong> E21",
+                    "• <strong>Preprocessing:</strong> Base Normalization",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Classification Head Only"
+                ],
+                "ImprovedCNN (Light)": [
+                    "• <strong>Experiment:</strong> E4",
+                    "• <strong>Preprocessing:</strong> Base Normalization",
+                    "• <strong>Input Size:</strong> 150x150 (Grayscale)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Default Cross-Entropy"
+                ],
+                "ImprovedCNN (224 Gray)": [
+                    "• <strong>Experiment:</strong> E8",
+                    "• <strong>Preprocessing:</strong> CLAHE + Contrast",
+                    "• <strong>Input Size:</strong> 224x224 (Grayscale)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Class Weights"
+                ],
+                "MobileNetV2 (CLAHE)": [
+                    "• <strong>Experiment:</strong> E10",
+                    "• <strong>Preprocessing:</strong> Local CLAHE",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Classification Head Only"
+                ],
+                "ResNet50 (Contrast, Light)": [
+                    "• <strong>Experiment:</strong> E20",
+                    "• <strong>Preprocessing:</strong> CLAHE + Contrast",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Partial Block Unfreezing"
+                ],
+                "ImprovedCNN (Contrast)": [
+                    "• <strong>Experiment:</strong> E7",
+                    "• <strong>Preprocessing:</strong> CLAHE + Contrast",
+                    "• <strong>Input Size:</strong> 150x150 (Grayscale)",
+                    "• <strong>Augmentation:</strong> Light Intensity",
+                    "• <strong>Tuning:</strong> Class Weights"
+                ],
+                "DenseNet121 (Contrast, Medium)": [
+                    "• <strong>Experiment:</strong> E25",
+                    "• <strong>Preprocessing:</strong> CLAHE + Contrast",
+                    "• <strong>Input Size:</strong> 224x224 (RGB)",
+                    "• <strong>Augmentation:</strong> Medium Intensity",
+                    "• <strong>Tuning:</strong> Partial Block Unfreezing"
+                ]
+            };
+            
+            const key = modelName.trim();
+            const bullets = modelDetails[key] || [
+                "• <strong>Specification:</strong> Details in technical report."
+            ];
+            
+            if (bodyEl) {
+                bodyEl.innerHTML = bullets.map(b => `<div style="margin-bottom: 6px; padding-left: 4px; border-left: 3px solid #0d9488;">&nbsp; ${b}</div>`).join("");
             }
+            
+            overlay.style.display = "flex";
+            overlay.offsetHeight; 
+            overlay.style.opacity = "1";
+            content.style.transform = "scale(1)";
+        }
+        
+        function hideCustomModal() {
+            const overlay = document.getElementById("custom-modal-overlay");
+            const content = document.getElementById("custom-modal-content");
+            if (!overlay) return;
+            
+            overlay.style.opacity = "0";
+            content.style.transform = "scale(0.9)";
+            
+            setTimeout(() => {
+                overlay.style.display = "none";
+            }, 300);
+        }
+
+        function initCheckboxMoreOptions() {
+            const labels = document.querySelectorAll("#models-checkbox-group .wrap > label");
+            if (labels.length === 0) return;
+            
+            labels.forEach(label => {
+                if (label.querySelector(".custom-more-dots")) return;
+                
+                const labelSpan = label.querySelector("span");
+                const modelName = labelSpan ? labelSpan.innerText : "";
+                
+                const dots = document.createElement("span");
+                dots.className = "custom-more-dots";
+                dots.innerText = "⋮";
+                
+                dots.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showCustomModal(modelName);
+                });
+                
+                label.appendChild(dots);
+            });
+        }
+        
+        const runCheck = setInterval(() => {
+            initButtonProgress();
+            initCheckboxMoreOptions();
         }, 1000);
     })();
-    " style="display:none;">
+    ' style="display:none;">
     """)
             
     # Page 1: Upload and Configuration
@@ -2153,7 +2518,7 @@ with gr.Blocks() as demo:
                     value=[
                         "Xception (Contrast, Medium)",
                         "ResNet50 (Contrast, Medium)",
-                        "DenseNet121 (Contrast, Medium)"
+                        "Xception (Contrast, Light)" # <--- New default!
                     ],
                     label="",
                     interactive=True,
@@ -2187,10 +2552,17 @@ with gr.Blocks() as demo:
                 
                 with gr.Tabs():
                     with gr.Tab("Method A: File Upload"):
+                        gr.HTML("""
+                        <div style='margin-bottom: 12px; display: flex; align-items: center; gap: 8px; background: transparent; padding: 0;'>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            <span style='color: #475569; font-size: 0.95rem; font-weight: 700;'>Upload Chest X-Rays (Max 5) — OR click 'Method B' tab above for samples</span>
+                        </div>
+                        """)
                         uploader = gr.File(
                             file_count="multiple",
                             file_types=[".png", ".jpg", ".jpeg"],
-                            label="Upload Chest X-Rays (Max 30) — OR click 'Method B' tab above for samples"
+                            show_label=False,
+                            elem_id="file-uploader"
                         )
                     with gr.Tab("Method B: Samples Library"):
                         sample_paths = [os.path.join("samples", f) for f in os.listdir("samples") if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
@@ -2418,16 +2790,16 @@ with gr.Blocks() as demo:
             return current, [[p, os.path.basename(p)] for p in current]
         for f in files:
             if f.name not in current:
-                if len(current) >= 30:
-                    raise gr.Error("Maximum of 30 images allowed in the queue.")
+                if len(current) >= 5:
+                    raise gr.Error("Maximum of 5 images allowed in the queue.")
                 current.append(f.name)
         return current, [[p, os.path.basename(p)] for p in current]
 
     def add_from_gallery(select_data: gr.SelectData, current):
         img_path = select_data.value["image"]["path"]
         if img_path not in current:
-            if len(current) >= 30:
-                raise gr.Error("Maximum of 30 images allowed in the queue.")
+            if len(current) >= 5:
+                raise gr.Error("Maximum of 5 images allowed in the queue.")
             current.append(img_path)
         return current, [[p, os.path.basename(p)] for p in current]
 
@@ -2467,6 +2839,18 @@ with gr.Blocks() as demo:
             gr.update(value="Processing...", interactive=False),  # calc_btn
             gr.update(value=f"<div class='processing-status-container'>processing | 0.0/{est_total:.1f}s</div>", visible=True) # processing_status
         )
+        
+        # Load selected models on-demand
+        for m in selected_models:
+            if m not in loaded_models or loaded_models[m] is None:
+                path = MODEL_PATHS.get(m)
+                if path and os.path.exists(path):
+                    try:
+                        print(f"Loading model on-demand: {m}...")
+                        loaded_models[m] = load_legacy_model(path)
+                    except Exception as e:
+                        print(f"Failed to load {m} on-demand: {e}")
+                        loaded_models[m] = None
         
         results = []
         
@@ -2510,6 +2894,20 @@ with gr.Blocks() as demo:
         # Read HTML report for UI preview
         with open(html_path, "r", encoding="utf-8") as f:
             html_report_code = f.read()
+            
+        # Schedule generated files for deletion after 5 minutes (300 seconds)
+        delete_file_after_delay(csv_path, delay=300)
+        delete_file_after_delay(html_path, delay=300)
+        delete_file_after_delay(pdf_path, delay=300)
+        
+        # Clear loaded models from RAM and free up Keras session
+        loaded_models.clear()
+        import tensorflow as tf
+        try:
+            tf.keras.backend.clear_session()
+            print("Successfully cleared Keras session and released model memory.")
+        except Exception as e:
+            print(f"Failed to clear Keras session: {e}")
         
         # Populate image selector choices
         choices = [r["name"] for r in results]
@@ -2619,6 +3017,7 @@ with gr.Blocks() as demo:
         df_full = pd.DataFrame(all_rows)
         
         pdf_report_path = generate_single_patient_pdf(p_data, bar_chart)
+        delete_file_after_delay(pdf_report_path, delay=300)
         
         return img_path, df_full, gr.update(value=pdf_report_path, visible=True), individual_html, ensemble_html, bar_chart
 
@@ -2629,5 +3028,9 @@ with gr.Blocks() as demo:
     )
 
 if __name__ == "__main__":
+    try:
+        cleanup_temp_files()
+    except Exception as e:
+        print(f"Error doing startup cleanup of temp files: {e}")
     # demo.launch(debug=True, theme=gr.themes.Default(), css=css)
     demo.launch(debug=True, theme=gr.themes.Default(), css=css, show_error=True)
