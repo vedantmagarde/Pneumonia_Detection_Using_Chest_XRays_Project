@@ -3027,10 +3027,26 @@ with gr.Blocks() as demo:
         outputs=[inspect_image, patient_matrix, patient_pdf_download, individual_results_html, ensemble_result_html, bar_chart_display]
     )
 
+# if __name__ == "__main__":
+#     try:
+#         cleanup_temp_files()
+#     except Exception as e:
+#         print(f"Error doing startup cleanup of temp files: {e}")
+#     # demo.launch(debug=True, theme=gr.themes.Default(), css=css)
+#     demo.launch(debug=True, theme=gr.themes.Default(), css=css, show_error=True, share=True)
+
+
+
 if __name__ == "__main__":
     try:
         cleanup_temp_files()
     except Exception as e:
-        print(f"Error doing startup cleanup of temp files: {e}")
-    # demo.launch(debug=True, theme=gr.themes.Default(), css=css)
-    demo.launch(debug=True, theme=gr.themes.Default(), css=css, show_error=True, share=True)
+        print(f"Error during startup cleanup of temp files: {e}")
+
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("PORT", 7860)),
+        debug=False,
+        show_error=True,
+        share=False
+    )
