@@ -11,15 +11,26 @@
 
 
 # Core ML & Processing Dependencies
-tensorflow-cpu==2.13.0
+# tensorflow-cpu==2.15.0
+# numpy==1.24.3
+# pandas==2.0.3
+# opencv-python-headless==4.9.0.80
+# Pillow==10.3.0
+
+# # UI & Visualization Dependencies
+# gradio==4.29.0
+# # matplotlib==3.7.5
+
+# # Utilities
+# h5py==3.10.0
+
+
+tensorflow-cpu==2.15.0
 numpy==1.24.3
-pandas==2.0.3
 opencv-python-headless==4.9.0.80
 Pillow==10.3.0
 
-# UI & Visualization Dependencies
-gradio==4.29.0
-# matplotlib==3.7.5
-
-# Utilities
+gradio==4.44.0
+matplotlib==3.7.5
 h5py==3.10.0
+typing-extensions==4.8.0
