@@ -25,12 +25,27 @@
 # h5py==3.10.0
 
 
-tensorflow-cpu==2.15.0
-numpy==1.24.3
-opencv-python-headless==4.9.0.80
-Pillow==10.3.0
+# tensorflow-cpu==2.15.0
+# numpy==1.24.3
+# opencv-python-headless==4.9.0.80
+# Pillow==10.3.0
 
-gradio==4.44.0
-matplotlib==3.7.5
-h5py==3.10.0
-typing-extensions==4.8.0
+# gradio==4.44.0
+# matplotlib==3.7.5
+# h5py==3.10.0
+# typing-extensions==4.8.0
+
+
+# UI & Core Dependencies
+gradio>=4.29.0
+tensorflow-cpu>=2.15.0,<2.16.0
+opencv-python-headless>=4.9.0
+pandas>=2.0.3
+
+# Data & Image Processing
+numpy>=1.24.3,<2.0.0
+Pillow>=10.3.0
+matplotlib>=3.7.5
+h5py>=3.10.0
+
+# Note: typing-extensions was removed to let Gradio/TF resolve it automatically.
