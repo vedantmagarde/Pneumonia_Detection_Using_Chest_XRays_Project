@@ -3037,16 +3037,13 @@ with gr.Blocks() as demo:
 
 
 
-if __name__ == "__main__":
-    try:
-        cleanup_temp_files()
-    except Exception as e:
-        print(f"Error during startup cleanup of temp files: {e}")
-
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=int(os.environ.get("PORT", 7860)),
-        debug=False,
-        show_error=True,
-        share=False
-    )
+# Update your launch command:
+demo.launch(
+    server_name="0.0.0.0",
+    server_port=int(os.environ.get("PORT", 7860)),
+    # Add mode="light" to force Gradio's internal engine to light
+    # Also set a neutral theme to prevent it from injecting extra colors
+    theme=gr.themes.Default(), 
+    # Use the 'mode' argument if your version supports it, 
+    # otherwise the CSS below is your strongest weapon.
+)
