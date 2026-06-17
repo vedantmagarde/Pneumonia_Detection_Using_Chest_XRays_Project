@@ -1024,8 +1024,17 @@ css = """
 /* Hide Gradio footer */
 footer { display: none !important; }
 
-/* Global theme variables */
-:root, .dark, .gradio-container, .gradio-container.dark {
+/* Global theme variables - STRICT LIGHT MODE OVERRIDE */
+:root, .dark, body, .gradio-container, .gradio-container.dark {
+    color-scheme: light !important;
+    --background-fill-primary: #fbf6ee !important; 
+    --background-fill-secondary: #ffffff !important;
+    --body-background-fill: #fbf6ee !important;
+    --color-accent: transparent !important; 
+    --primary-500: #71a0a5 !important; 
+    --primary-600: #71a0a5 !important;
+    --border-color-primary: #eadbc8 !important; 
+    
     --body-text-color: #0f172a !important;
     --body-text-color-subdued: #64748b !important;
     --text-color: #0f172a !important;
@@ -2227,7 +2236,7 @@ custom-modal-close:hover {
 
 """
 
-with gr.Blocks() as demo:
+with gr.Blocks(theme=gr.themes.Base()) as demo:
     # Application state variables
     active_selection = gr.State([])
     prediction_state = gr.State([])
@@ -2237,10 +2246,21 @@ with gr.Blocks() as demo:
         <h1 style="color: #ba4343; margin: 0; font-size: 2.2rem;">Pneumonia AI Diagnostic Dashboard</h1>
         <p style="color: #8c7e6c; margin: 5px 0 0 0;">Multi-model Deep Learning Ensemble Analysis</p>
     </div>
-    <img src="invalid-image-trigger" onerror='
+<img src="invalid-image-trigger" onerror='
     (function() {
         console.log("Progress loader script initialized.");
         
+        /* --- NEW CODE: KILL DARK MODE PERMANENTLY --- */
+        document.body.classList.remove("dark");
+        document.documentElement.classList.remove("dark");
+        const themeObserver = new MutationObserver((mutations) => {
+            if (document.body.classList.contains("dark")) document.body.classList.remove("dark");
+            if (document.documentElement.classList.contains("dark")) document.documentElement.classList.remove("dark");
+        });
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+        themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+        /* -------------------------------------------- */
+
         function initButtonProgress() {
             const btn = document.getElementById("calc-btn");
             if (!btn) return false;
@@ -3038,12 +3058,8 @@ with gr.Blocks() as demo:
 
 
 # Update your launch command:
-demo.launch(
-    server_name="0.0.0.0",
-    server_port=int(os.environ.get("PORT", 7860)),
-    # Add mode="light" to force Gradio's internal engine to light
-    # Also set a neutral theme to prevent it from injecting extra colors
-    theme=gr.themes.Default(), 
-    # Use the 'mode' argument if your version supports it, 
-    # otherwise the CSS below is your strongest weapon.
-)
+if __name__ == "__main__":
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("PORT", 7860))
+    )
