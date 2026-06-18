@@ -2236,6 +2236,29 @@ custom-modal-close:hover {
 
 """
 
+
+force_light_js = """
+function() {
+    document.body.classList.remove('dark');
+    document.documentElement.classList.remove('dark');
+    
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (document.body.classList.contains('dark')) {
+                document.body.classList.remove('dark');
+            }
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}
+"""
+
+
+
 with gr.Blocks(theme=gr.themes.Default(), css=css, js=force_light_js) as demo:
     # Application state variables
     active_selection = gr.State([])
