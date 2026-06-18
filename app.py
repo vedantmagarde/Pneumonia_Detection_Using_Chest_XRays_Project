@@ -2236,7 +2236,7 @@ custom-modal-close:hover {
 
 """
 
-with gr.Blocks(theme=gr.themes.Base()) as demo:
+with gr.Blocks(theme=gr.themes.Default(), css=css, js=force_light_js) as demo:
     # Application state variables
     active_selection = gr.State([])
     prediction_state = gr.State([])
